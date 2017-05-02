@@ -31,7 +31,7 @@ void calculate_alpha_beta(HMM *, HMM_Params *, string);
 void calculate_gamma(HMM_Params *);
 void calculate_epsilon(HMM *, HMM_Params *, string);
 void cumulate_pi_A_B(HMM_Params *, HMM_Cumulate *, string);
-
+void update_parameter(HMM *, HMM_Cumulate *);
 /*-------------------------------------------------------------
 typedef struct{
    char *model_name;
@@ -205,4 +205,8 @@ void cumulate_pi_A_B(HMM_Params *hmm_params, HMM_Cumulate *hmm_cumulate, string 
 			hmm_cumulate->observation_denominator[state_j][observ_k] += tmp_denominator;
 		}
 	}
+}
+
+void update_parameter(HMM *hmm, HMM_Cumulate *hmm_cumulate){
+	// To-Do
 }
