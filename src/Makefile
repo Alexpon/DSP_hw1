@@ -3,3 +3,4 @@ all: train.cpp test_hmm.cpp
 	g++ test_hmm.cpp -std=c++11 -o test
 clean:
 	rm -r train
+	rm -r test

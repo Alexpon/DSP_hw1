@@ -10,10 +10,10 @@ typedef struct{
    int state_num;
    double alpha[100][100];
    double beta[100][100];
-   double gamme[100][100];
+   double gamma[100][100];
 } HMM_Params;
 
-void get_alpha(HMM *, HMM_Params *, string);
+void get_alpha_beta(HMM *, HMM_Params *, string);
 
 /*-------------------------------------------------------------
 typedef struct{
@@ -46,30 +46,52 @@ int main(int argc, char **argv){
 	for (int i=0; i<iteration; i++){
 		ifstream ifs(observe_sequence, ifstream::in);
 		while(getline(ifs, sequence)){
-			get_alpha(&hmm, &hmm_params, sequence);
+			get_alpha_beta(&hmm, &hmm_params, sequence);
 			break;
 			//get_beta(sequence)
 			//get_gamma()
 		}
 		ifs.close();
 	}
-	for (int i=0; i<hmm_params.state_num; i++){
-		cout << hmm_params.alpha[i][0] <<endl;
+	for (int j=0; j<hmm_params.sequence_size; j++){
+		for (int i=0; i<hmm_params.state_num; i++){
+			cout << hmm_params.beta[i][j] << " ";
+		}
+		cout << endl;
 	}
 	dumpHMM(open_or_die(output_file, "w"), &hmm);
 	return 0;
 }
 
-void get_alpha(HMM *hmm, HMM_Params *hmm_params, string sequence){
+void get_alpha_beta(HMM *hmm, HMM_Params *hmm_params, string sequence){
+	double tmp_alpha, tmp_beta;
 	hmm_params->state_num = hmm->state_num;
 	hmm_params->sequence_size = sequence.size();
 
 	// initialization
-	for (int i=0; i<hmm_params->state_num; i++){
-		hmm_params->alpha[i][0] = (hmm->initial[i]) * (hmm->observation[sequence[0]-65][i]);
+	for (int state=0; state<hmm_params->state_num; state++){
+		hmm_params->alpha[state][0] = (hmm->initial[state]) * (hmm->observation[sequence[0]-65][state]);
+		hmm_params->beta[state][hmm_params->sequence_size-1] = 1.0;
 	}
-	// induction
 	
+	for (int observ=1; observ<hmm_params->sequence_size; observ++){
+		for (int state=0; state<hmm_params->state_num; state++){
+			tmp_alpha = 0.0;
+			for (int sub_state=0; sub_state<hmm_params->state_num; sub_state++){
+				tmp_alpha += hmm_params->alpha[sub_state][observ-1]*(hmm->transition[sub_state][state]);
+			}
+			hmm_params->alpha[state][observ] = tmp_alpha*(hmm->observation[sequence[observ]-65][state]);
+		}
+	}
+	
+	for (int observ=hmm_params->sequence_size-2; observ>=0; observ--){
+		for (int state=0; state<hmm_params->state_num; state++){
+			tmp_beta = 0.0;
+			for (int sub_state=0; sub_state<hmm_params->state_num; sub_state++){
+				tmp_beta += hmm->transition[state][sub_state]*hmm->observation[sequence[observ+1]-65][sub_state]*hmm_params->beta[sub_state][observ+1];
+			}
+			hmm_params->beta[state][observ] = tmp_beta;
+		}
+	}
 }
-
 
