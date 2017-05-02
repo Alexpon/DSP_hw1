@@ -4,25 +4,42 @@
 #include "hmm.h"
 using namespace std;
 
+#define STATE_NUM 6
+#define OBSERV_NUM 6
+#define SEQ_NUM 100
 
 typedef struct{
-   int sequence_size;
-   int state_num;
-   double alpha[100][100];
-   double beta[100][100];
-   double gamma[100][100];
+	int sequence_size;
+	int state_num;
+	double alpha[STATE_NUM][SEQ_NUM];
+	double beta[STATE_NUM][SEQ_NUM];
+	double gamma[STATE_NUM][SEQ_NUM];
+	double epsilon[SEQ_NUM][STATE_NUM][STATE_NUM];
 } HMM_Params;
 
-void get_alpha_beta(HMM *, HMM_Params *, string);
+typedef struct{
+	int counter;
+	double pi[STATE_NUM];
+	double transition_epsilon[STATE_NUM][STATE_NUM];
+	double transition_gamma[STATE_NUM][STATE_NUM];
+	double observation_numerator[STATE_NUM][OBSERV_NUM];
+	double observation_denominator[STATE_NUM][OBSERV_NUM];
+} HMM_Cumulate;
+
+void hmm_initial(HMM_Cumulate *);
+void calculate_alpha_beta(HMM *, HMM_Params *, string);
+void calculate_gamma(HMM_Params *);
+void calculate_epsilon(HMM *, HMM_Params *, string);
+void cumulate_pi_A_B(HMM_Params *, HMM_Cumulate *, string);
 
 /*-------------------------------------------------------------
 typedef struct{
    char *model_name;
    int state_num;								//number of state
    int observ_num;								//number of observation
-   double initial[MAX_STATE];					//initial prob.
-   double transition[MAX_STATE][MAX_STATE];		//transition prob.
-   double observation[MAX_OBSERV][MAX_STATE];	//observation prob.
+   double initial[STATE_NUM];					//initial prob.
+   double transition[STATE_NUM][STATE_NUM];		//transition prob.
+   double observation[OBSERV_NUM][STATE_NUM];	//observation prob.
 } HMM;
 ----------------------------------------------------------------*/
 
@@ -41,29 +58,48 @@ int main(int argc, char **argv){
 	string sequence="";
 	HMM hmm;
 	HMM_Params hmm_params;
+	HMM_Cumulate hmm_cumulate;
 	loadHMM(&hmm, initial_model);
 	
 	for (int i=0; i<iteration; i++){
+		hmm_initial(&hmm_cumulate);
 		ifstream ifs(observe_sequence, ifstream::in);
 		while(getline(ifs, sequence)){
-			get_alpha_beta(&hmm, &hmm_params, sequence);
+			calculate_alpha_beta(&hmm, &hmm_params, sequence);
+			calculate_gamma(&hmm_params);
+			calculate_epsilon(&hmm, &hmm_params, sequence);
+			cumulate_pi_A_B(&hmm_params, &hmm_cumulate, sequence);
 			break;
-			//get_beta(sequence)
-			//get_gamma()
 		}
 		ifs.close();
 	}
+	/*
 	for (int j=0; j<hmm_params.sequence_size; j++){
 		for (int i=0; i<hmm_params.state_num; i++){
-			cout << hmm_params.beta[i][j] << " ";
+			cout << hmm_params.gamma[i][j] << " ";
 		}
 		cout << endl;
-	}
+	}*/
 	dumpHMM(open_or_die(output_file, "w"), &hmm);
 	return 0;
 }
 
-void get_alpha_beta(HMM *hmm, HMM_Params *hmm_params, string sequence){
+void hmm_initial(HMM_Cumulate *hmm_cumulate){
+	hmm_cumulate->counter = 0;
+	for (int i=0; i<STATE_NUM; i++){
+		for (int j=0; j<STATE_NUM; j++){
+			hmm_cumulate->transition_epsilon[i][j] = 0.0;
+			hmm_cumulate->transition_gamma[i][j] = 0.0;
+		}
+		for (int k=0; k<OBSERV_NUM; k++){
+			hmm_cumulate->observation_numerator[i][k] = 0.0;
+			hmm_cumulate->observation_denominator[i][k] = 0.0;
+		}
+		hmm_cumulate->pi[i] = 0.0;
+	}
+}
+
+void calculate_alpha_beta(HMM *hmm, HMM_Params *hmm_params, string sequence){
 	double tmp_alpha, tmp_beta;
 	hmm_params->state_num = hmm->state_num;
 	hmm_params->sequence_size = sequence.size();
@@ -95,3 +131,78 @@ void get_alpha_beta(HMM *hmm, HMM_Params *hmm_params, string sequence){
 	}
 }
 
+
+void calculate_gamma(HMM_Params *hmm_params){
+	double cumulate_ab=0.0;
+	for (int observ=0; observ<hmm_params->sequence_size; observ++){
+		cumulate_ab=0.0;
+		for (int state=0; state<hmm_params->state_num; state++){
+			cumulate_ab += hmm_params->alpha[state][observ]*hmm_params->beta[state][observ];
+		}
+		for (int state=0; state<hmm_params->state_num; state++){
+			hmm_params->gamma[state][observ] = hmm_params->alpha[state][observ]*hmm_params->beta[state][observ]/cumulate_ab;
+		}
+	}
+}
+
+void calculate_epsilon(HMM *hmm, HMM_Params *hmm_params, string sequence){
+	for (int observ=0; observ<hmm_params->sequence_size-1; observ++){
+		double cumulate = 0.0;
+		for (int state_i=0; state_i<hmm_params->state_num; state_i++){
+			for (int state_j=0; state_j<hmm_params->state_num; state_j++){
+				cumulate += (hmm_params->alpha[state_i][observ]) * 
+							(hmm->transition[state_i][state_j]) *
+							(hmm->observation[sequence[observ+1]-65][state_j]) * 
+							(hmm_params->beta[state_i][observ+1]);
+			}
+		}
+		for (int state_i=0; state_i<hmm_params->state_num; state_i++){
+			for (int state_j=0; state_j<hmm_params->state_num; state_j++){
+				hmm_params->epsilon[observ][state_i][state_j] = 
+							(hmm_params->alpha[state_i][observ]) *
+							(hmm->transition[state_i][state_j]) *
+							(hmm->observation[sequence[observ+1]-65][state_j]) * 
+							(hmm_params->beta[state_i][observ+1]) / 
+							cumulate;
+			}
+		}
+	}
+}
+
+void cumulate_pi_A_B(HMM_Params *hmm_params, HMM_Cumulate *hmm_cumulate, string sequence){
+	double tmp_epsilon=0.0;
+	double tmp_gamma=0.0;
+	double tmp_numerator=0.0;
+	double tmp_denominator=0.0;
+
+	hmm_cumulate->counter++;
+	for (int state_i=0; state_i<STATE_NUM; state_i++){
+		hmm_cumulate->pi[state_i] += hmm_params->gamma[state_i][0];
+
+		tmp_gamma = 0.0;
+		for (int t=0; t<hmm_params->sequence_size-1; t++)
+			tmp_gamma += hmm_params->gamma[state_i][t];
+		for (int state_j=0; state_j<STATE_NUM; state_j++){
+			tmp_epsilon = 0.0;
+			for (int t=0; t<hmm_params->sequence_size-1; t++)
+				tmp_epsilon += hmm_params->epsilon[t][state_i][state_j];
+			hmm_cumulate->transition_epsilon[state_i][state_j] += tmp_epsilon;
+			hmm_cumulate->transition_gamma[state_i][state_j] += tmp_gamma;
+		}
+	}
+
+	for (int state_j=0; state_j<STATE_NUM; state_j++){
+		tmp_denominator = 0.0;
+		for (int t=0; t<hmm_params->sequence_size; t++)
+			tmp_denominator += hmm_params->gamma[state_j][t];
+		for (int observ_k=0; observ_k<OBSERV_NUM; observ_k++){
+			tmp_numerator = 0.0;
+			for (int t=0; t<hmm_params->sequence_size; t++){
+				if ((sequence[t]-65)==observ_k)
+					tmp_numerator += hmm_params->gamma[state_j][t];
+			}
+			hmm_cumulate->observation_numerator[state_j][observ_k] += tmp_numerator;
+			hmm_cumulate->observation_denominator[state_j][observ_k] += tmp_denominator;
+		}
+	}
+}
