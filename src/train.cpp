@@ -22,8 +22,8 @@ typedef struct{
 	double pi[STATE_NUM];
 	double transition_epsilon[STATE_NUM][STATE_NUM];
 	double transition_gamma[STATE_NUM][STATE_NUM];
-	double observation_numerator[STATE_NUM][OBSERV_NUM];
-	double observation_denominator[STATE_NUM][OBSERV_NUM];
+	double observation_numerator[OBSERV_NUM][STATE_NUM];
+	double observation_denominator[OBSERV_NUM][STATE_NUM];
 } HMM_Cumulate;
 
 void hmm_initial(HMM_Cumulate *);
@@ -32,6 +32,7 @@ void calculate_gamma(HMM_Params *);
 void calculate_epsilon(HMM *, HMM_Params *, string);
 void cumulate_pi_A_B(HMM_Params *, HMM_Cumulate *, string);
 void update_parameter(HMM *, HMM_Cumulate *);
+
 /*-------------------------------------------------------------
 typedef struct{
    char *model_name;
@@ -62,6 +63,7 @@ int main(int argc, char **argv){
 	loadHMM(&hmm, initial_model);
 	
 	for (int i=0; i<iteration; i++){
+		cout << "Iter: " << i+1 << endl;
 		hmm_initial(&hmm_cumulate);
 		ifstream ifs(observe_sequence, ifstream::in);
 		while(getline(ifs, sequence)){
@@ -69,8 +71,8 @@ int main(int argc, char **argv){
 			calculate_gamma(&hmm_params);
 			calculate_epsilon(&hmm, &hmm_params, sequence);
 			cumulate_pi_A_B(&hmm_params, &hmm_cumulate, sequence);
-			break;
 		}
+		update_parameter(&hmm, &hmm_cumulate);
 		ifs.close();
 	}
 	/*
@@ -92,8 +94,8 @@ void hmm_initial(HMM_Cumulate *hmm_cumulate){
 			hmm_cumulate->transition_gamma[i][j] = 0.0;
 		}
 		for (int k=0; k<OBSERV_NUM; k++){
-			hmm_cumulate->observation_numerator[i][k] = 0.0;
-			hmm_cumulate->observation_denominator[i][k] = 0.0;
+			hmm_cumulate->observation_numerator[k][i] = 0.0;
+			hmm_cumulate->observation_denominator[k][i] = 0.0;
 		}
 		hmm_cumulate->pi[i] = 0.0;
 	}
@@ -176,6 +178,8 @@ void cumulate_pi_A_B(HMM_Params *hmm_params, HMM_Cumulate *hmm_cumulate, string 
 	double tmp_denominator=0.0;
 
 	hmm_cumulate->counter++;
+
+	// Pi and A(transition prob)
 	for (int state_i=0; state_i<STATE_NUM; state_i++){
 		hmm_cumulate->pi[state_i] += hmm_params->gamma[state_i][0];
 
@@ -191,6 +195,7 @@ void cumulate_pi_A_B(HMM_Params *hmm_params, HMM_Cumulate *hmm_cumulate, string 
 		}
 	}
 
+	// B(observation prob)
 	for (int state_j=0; state_j<STATE_NUM; state_j++){
 		tmp_denominator = 0.0;
 		for (int t=0; t<hmm_params->sequence_size; t++)
@@ -201,12 +206,26 @@ void cumulate_pi_A_B(HMM_Params *hmm_params, HMM_Cumulate *hmm_cumulate, string 
 				if ((sequence[t]-65)==observ_k)
 					tmp_numerator += hmm_params->gamma[state_j][t];
 			}
-			hmm_cumulate->observation_numerator[state_j][observ_k] += tmp_numerator;
-			hmm_cumulate->observation_denominator[state_j][observ_k] += tmp_denominator;
+			hmm_cumulate->observation_numerator[observ_k][state_j] += tmp_numerator;
+			hmm_cumulate->observation_denominator[observ_k][state_j] += tmp_denominator;
 		}
 	}
 }
 
 void update_parameter(HMM *hmm, HMM_Cumulate *hmm_cumulate){
-	// To-Do
+	for (int state_i=0; state_i<STATE_NUM; state_i++){
+		hmm->initial[state_i] = hmm_cumulate->pi[state_i]/hmm_cumulate->counter;
+	}
+	for (int state_i=0; state_i<STATE_NUM; state_i++){
+		for (int state_j=0; state_j<STATE_NUM; state_j++){
+			hmm->transition[state_i][state_j] = (hmm_cumulate->transition_epsilon[state_i][state_j])/
+									(hmm_cumulate->transition_gamma[state_i][state_j]);
+		}
+	}
+	for (int state_j=0; state_j<STATE_NUM; state_j++){
+		for (int observ_k=0; observ_k<OBSERV_NUM; observ_k++){
+			hmm->observation[observ_k][state_j] = (hmm_cumulate->observation_numerator[observ_k][state_j])/
+													(hmm_cumulate->observation_denominator[observ_k][state_j]);
+		}
+	}
 }
