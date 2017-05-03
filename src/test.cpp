@@ -4,6 +4,9 @@
 #include <math.h>
 #include "hmm.h"
 using namespace std;
+
+double viterbi(HMM *, string);
+
 /*-------------------------------------------------------------
 typedef struct{
    char *model_name;
@@ -40,7 +43,7 @@ int main(int argc, char **argv){
 		optimal_prob = 0.0;
 		optimal_model = 0;
 		for (int i=0; i<5; i++){
-			model_prob = viterbi(&hmm[i], sequence);
+			model_prob = viterbi(&hmms[i], sequence);
 			if (model_prob>optimal_prob){
 				optimal_prob = model_prob;
 				optimal_model = i;
