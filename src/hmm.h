@@ -24,11 +24,11 @@
 
 typedef struct{
    char *model_name;
-   int state_num;					//number of state
-   int observ_num;					//number of observation
-   double initial[MAX_STATE];			//initial prob.
-   double transition[MAX_STATE][MAX_STATE];	//transition prob.
-   double observation[MAX_OBSERV][MAX_STATE];	//observation prob.
+   int state_num;					                   //number of state
+   int observ_num;					                //number of observation
+   double initial[MAX_STATE];			             //initial prob.
+   double transition[MAX_STATE][MAX_STATE];	    //transition prob.
+   double observation[MAX_OBSERV][MAX_STATE];    //observation prob.
 } HMM;
 
 static FILE *open_or_die( const char *filename, const char *ht )
@@ -81,7 +81,6 @@ static void dumpHMM( FILE *fp, HMM *hmm )
 {
    int i, j;
 
-   //fprintf( fp, "model name: %s\n", hmm->model_name );
    fprintf( fp, "initial: %d\n", hmm->state_num );
    for( i = 0 ; i < hmm->state_num - 1; i++ )
       fprintf( fp, "%.5lf ", hmm->initial[i]);
@@ -124,8 +123,7 @@ static int load_models( const char *listname, HMM *hmm, const int max_num )
 static void dump_models( HMM *hmm, const int num )
 {
    int i = 0;
-   for( ; i < num ; i++ ){ 
-      //		FILE *fp = open_or_die( hmm[i].model_name, "w" );
+   for( ; i < num ; i++ ){
       dumpHMM( stderr, &hmm[i] );
    }
 }

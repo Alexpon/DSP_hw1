@@ -61,7 +61,8 @@ int main(int argc, char **argv){
 	HMM_Params hmm_params;
 	HMM_Cumulate hmm_cumulate;
 	loadHMM(&hmm, initial_model);
-	
+
+	cout << "Starting training " << output_file << endl;
 	for (int i=0; i<iteration; i++){
 		cout << "Iter: " << i+1 << endl;
 		hmm_initial(&hmm_cumulate);
@@ -75,13 +76,6 @@ int main(int argc, char **argv){
 		update_parameter(&hmm, &hmm_cumulate);
 		ifs.close();
 	}
-	/*
-	for (int j=0; j<hmm_params.sequence_size; j++){
-		for (int i=0; i<hmm_params.state_num; i++){
-			cout << hmm_params.gamma[i][j] << " ";
-		}
-		cout << endl;
-	}*/
 	dumpHMM(open_or_die(output_file, "w"), &hmm);
 	return 0;
 }
