@@ -1,0 +1,5 @@
+../hmm_model/model_01.txt
+../hmm_model/model_02.txt
+../hmm_model/model_03.txt
+../hmm_model/model_04.txt
+../hmm_model/model_05.txt

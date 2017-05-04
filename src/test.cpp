@@ -58,8 +58,8 @@ int main(int argc, char **argv){
 	}
 	ifs.close();	
 	ofs.close();
-	
-	get_acc(predict, cnt);
+	if (testing_data_filename[20]!='2')
+		get_acc(predict, cnt);
 
 	return 0;
 }
@@ -98,8 +98,8 @@ void get_acc(int predict[], int total){
 	int match = 0;
 	string line="";
 
-	ifstream ifs("../testing_answer.txt", ifstream::in);
-	ofstream ofs("acc.txt", ofstream::out);
+	ifstream ifs("../data/testing_answer.txt", ifstream::in);
+	ofstream ofs("../result/acc.txt", ofstream::out);
 	while (getline(ifs, line)){
 		if ((line[7]-48)==predict[cnt]){
 			match ++;
